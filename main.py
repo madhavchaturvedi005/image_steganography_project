@@ -183,7 +183,16 @@ if st.session_state.selected_tab == 1:
     
     st.markdown('''<style>
     .stFileUploader { background: #fff !important; }
-    .preview-area .preview-desc, .preview-area .preview-title, .preview-area .preview-icon { color: #222 !important; }
+    .preview-area, .preview-area * { color: #222 !important; }
+    .decoded-message {
+        color: #222 !important;
+        background-color: white;
+        padding: 1rem;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        margin-top: 1em;
+        word-break: break-word;
+    }
     </style>''', unsafe_allow_html=True)
     
     decode_image_file = st.file_uploader("Encoded Image", type=["png", "jpg", "jpeg"], key="decode_img")
@@ -195,15 +204,23 @@ if st.session_state.selected_tab == 1:
         try:
             decode_image = Image.open(decode_image_file).convert("RGB")
             decoded_message = decode_data(decode_image)
-            st.markdown(f'<div class="preview-icon">📜</div><div class="preview-title">Hidden Message Revealed</div><div class="preview-desc" style="color:#222 !important;font-size:1.1rem;margin-top:1em;">{decoded_message if decoded_message else "No hidden message found or image is not properly encoded."}</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="preview-icon">📜</div>'
+                f'<div class="preview-title">Hidden Message Revealed</div>'
+                f'<div class="decoded-message">'
+                f'{decoded_message if decoded_message else "No hidden message found or image is not properly encoded."}'
+                f'</div>', 
+                unsafe_allow_html=True
+            )
         except Exception as e:
             st.error(f"Error decoding image: {e}")
     else:
-        st.markdown('<div style="text-align:center;">'
-            '<div class="preview-icon"  !important;">👁️</div>'
-            '<div class="preview-title" !important;">Decoded Message Preview</div>'
-            '<div class="preview-desc" !important;">Your decoded message will appear here</div>'
-            '</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="preview-icon">👁️</div>'
+            '<div class="preview-title">Decoded Message Preview</div>'
+            '<div class="preview-desc">Your decoded message will appear here</div>',
+            unsafe_allow_html=True
+        )
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Footer ---
