@@ -105,7 +105,7 @@ st.markdown('''
       <div class="secure-subtitle">Advanced Image Steganography</div>
     </div>
   </div>
-  <a class="secure-viewsrc" href="https://github.com/madhavchaturvedi005/image_steganography_project" target="_blank"> <span style="margin-right:0.5em;">🍴</span>View Source</a>
+  <a class="secure-viewsrc" href="https://github.com/madhavchaturvedi005/image_steganography_project" target="_blank"> <span style="margin-right:0.5em;"></span>View Source</a>
 </div>
 ''', unsafe_allow_html=True)
 
