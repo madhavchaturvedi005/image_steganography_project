@@ -101,11 +101,11 @@ st.markdown('''
   <div style="display: flex; align-items: center; gap: 0.7rem;">
     <span class="secure-logo"><span class="secure-logo-icon">🛡️</span></span>
     <div>
-      <div class="secure-title">SecureSteg</div>
+      <div class="secure-title">disma</div>
       <div class="secure-subtitle">Advanced Image Steganography</div>
     </div>
   </div>
-  <a class="secure-viewsrc" href="https://github.com/your-repo" target="_blank"> <span style="margin-right:0.5em;">🍴</span>View Source</a>
+  <a class="secure-viewsrc" href="https://github.com/madhavchaturvedi005/image_steganography_project" target="_blank"> <span style="margin-right:0.5em;">🍴</span>View Source</a>
 </div>
 ''', unsafe_allow_html=True)
 
