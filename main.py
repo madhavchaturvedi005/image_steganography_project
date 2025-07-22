@@ -83,8 +83,8 @@ header { display: none; }
 /* Preview Area */
 .preview-area { border: 2.5px dashed #ede9fe; border-radius: 16px; padding: 2.5rem 1rem; text-align: center; color: #a78bfa; margin-bottom: 1.5rem; background: #fff; }
 .preview-area .preview-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
-.preview-area .preview-title { font-size: 1.2rem; font-weight: 700; color: #444; }
-.preview-area .preview-desc { color: #888; font-size: 1rem; }
+.preview-area .preview-title { font-size: 1.2rem; font-weight: 700; color: #000; }
+.preview-area .preview-desc { color: #000; font-size: 1rem; }
 
 /* Footer */
 .secure-footer { text-align: center; color: #101010; font-size: 1rem; margin-top: 2.5rem; margin-bottom: 0.5rem; width: 100%; }
