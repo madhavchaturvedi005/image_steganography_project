@@ -87,7 +87,7 @@ header { display: none; }
 .preview-area .preview-desc { color: #888; font-size: 1rem; }
 
 /* Footer */
-.secure-footer { text-align: center; color: #888; font-size: 1rem; margin-top: 2.5rem; margin-bottom: 0.5rem; width: 100%; }
+.secure-footer { text-align: center; color: #101010; font-size: 1rem; margin-top: 2.5rem; margin-bottom: 0.5rem; width: 100%; }
 .secure-footer .footer-icon { color: #a78bfa; margin-right: 0.3rem; }
 
 /* Full width for main container */
