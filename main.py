@@ -178,20 +178,27 @@ if st.session_state.selected_tab == 0:
 if st.session_state.selected_tab == 1:
     st.markdown('''<div class="section-card">
       <div class="section-header">🔍 Reveal Secret Message</div>
-      <div class="section-desc" style="margin-bottom:0.5rem;">Decode hidden text from an image using LSB steganography</div>
+      <div class="section-desc" style="margin-bottom:0.5rem; color:#222;">Decode hidden text from an image using LSB steganography</div>
       <div class="section-body" style="padding-top:0.5rem;">''', unsafe_allow_html=True)
     
     st.markdown('''<style>
     .stFileUploader { background: #fff !important; }
     .preview-area, .preview-area * { color: #222 !important; }
-    .decoded-message {
+    .decoded-message-box {
         color: #222 !important;
-        background-color: white;
+        background-color: #f8f9fa;
         padding: 1rem;
         border-radius: 12px;
         font-size: 1.1rem;
         margin-top: 1em;
         word-break: break-word;
+        border: 1px solid #ddd;
+        font-family: monospace;
+        white-space: pre-wrap;
+    }
+    .preview-title {
+        color: #222 !important;
+        font-weight: 700;
     }
     </style>''', unsafe_allow_html=True)
     
@@ -207,7 +214,7 @@ if st.session_state.selected_tab == 1:
             st.markdown(
                 f'<div class="preview-icon">📜</div>'
                 f'<div class="preview-title">Hidden Message Revealed</div>'
-                f'<div class="decoded-message">'
+                f'<div class="decoded-message-box">'
                 f'{decoded_message if decoded_message else "No hidden message found or image is not properly encoded."}'
                 f'</div>', 
                 unsafe_allow_html=True
@@ -218,11 +225,10 @@ if st.session_state.selected_tab == 1:
         st.markdown(
             '<div class="preview-icon">👁️</div>'
             '<div class="preview-title">Decoded Message Preview</div>'
-            '<div class="preview-desc">Your decoded message will appear here</div>',
+            '<div class="preview-desc" style="color:#222;">Your decoded message will appear here</div>',
             unsafe_allow_html=True
         )
     st.markdown('</div>', unsafe_allow_html=True)
-
 # --- Footer ---
 st.markdown('''<div class="secure-footer">
   <span class="footer-icon">🛡️</span> Built with security and privacy in mind. All processing happens in your browser.<br>
