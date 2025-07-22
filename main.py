@@ -200,9 +200,9 @@ if st.session_state.selected_tab == 1:
             st.error(f"Error decoding image: {e}")
     else:
         st.markdown('<div style="text-align:center;">'
-            '<div class="preview-icon" style="color:#000 !important;">👁️</div>'
-            '<div class="preview-title" style="color:#000 !important;">Decoded Message Preview</div>'
-            '<div class="preview-desc" style="color:#000 !important;">Your decoded message will appear here</div>'
+            '<div class="preview-icon"  !important;">👁️</div>'
+            '<div class="preview-title" !important;">Decoded Message Preview</div>'
+            '<div class="preview-desc" !important;">Your decoded message will appear here</div>'
             '</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
