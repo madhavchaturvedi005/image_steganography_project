@@ -101,7 +101,7 @@ st.markdown('''
   <div style="display: flex; align-items: center; gap: 0.7rem;">
     <span class="secure-logo"><span class="secure-logo-icon">🛡️</span></span>
     <div>
-      <div class="secure-title">disma</div>
+      <div class="secure-title">ImageShield</div>
       <div class="secure-subtitle">Advanced Image Steganography</div>
     </div>
   </div>
