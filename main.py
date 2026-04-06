@@ -1,236 +1,241 @@
 import streamlit as st
 from PIL import Image
 import base64
+import random
 from io import BytesIO
+from quantum_crypto import generate_bb84_key, xor_encrypt, xor_decrypt, key_bits_to_str, str_to_key_bits
+from styles import load_css
 
-st.set_page_config(page_title="SecureSteg | Advanced Image Steganography", page_icon=":shield:", layout="wide")
+st.set_page_config(page_title="ImageShield", page_icon="assets/logo.png" if False else ":shield:", layout="wide")
+load_css()
 
-# --- Helper Functions (encoding/decoding logic) ---
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
 def encode_data(image, data):
-    data = data + "$"  # Delimiter
-    data_bin = ''.join(format(ord(char), '08b') for char in data)
+    data += "$"
+    data_bin = ''.join(format(ord(c), '08b') for c in data)
     pixels = list(image.getdata())
-    encoded_pixels = []
-    index = 0
-    for pixel in pixels:
-        if index < len(data_bin):
-            red_pixel = pixel[0]
-            new_pixel = (red_pixel & 254) | int(data_bin[index])
-            encoded_pixels.append((new_pixel, pixel[1], pixel[2]))
-            index += 1
-        else:
-            encoded_pixels.append(pixel)
-    return encoded_pixels
+    out = []
+    for i, px in enumerate(pixels):
+        out.append(((px[0] & 254) | int(data_bin[i]), px[1], px[2]) if i < len(data_bin) else px)
+    return out
 
 def decode_data(image):
-    pixels = list(image.getdata())
-    data_bin = ""
-    for pixel in pixels:
-        data_bin += bin(pixel[0])[-1]
-    data = ""
-    for i in range(0, len(data_bin), 8):
-        byte = data_bin[i:i + 8]
-        data += chr(int(byte, 2))
-        if data[-1] == "$":
+    bits = "".join(bin(p[0])[-1] for p in image.getdata())
+    msg = ""
+    for i in range(0, len(bits), 8):
+        ch = chr(int(bits[i:i+8], 2))
+        msg += ch
+        if ch == "$":
             break
-    return data[:-1]
+    return msg[:-1]
 
-# --- Custom CSS for Modern UI (White BG, Full Width, Black Text) ---
+def generate_otp():
+    return str(random.randint(100000, 999999))
+
+def otp_crypt(text, otp):
+    return ''.join(chr(ord(c) ^ int(otp[i % len(otp)])) for i, c in enumerate(text))
+
+def toggle_widget(label, desc, key, help_text=""):
+    """Render a styled toggle row with visible label, description, and checkbox."""
+    st.markdown(
+        f'<div style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:1rem 1.25rem;margin-bottom:0.75rem;">'
+        f'<div style="font-size:0.92rem;font-weight:700;color:#111;margin-bottom:0.3rem;">{label}</div>'
+        f'<div style="font-size:0.8rem;color:#9ca3af;">{desc}</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+    return st.checkbox("Enable", key=key, help=help_text)
+
+# ── Navigation ────────────────────────────────────────────────────────────────
+
 st.markdown('''
-<style>
-body, .stApp, .block-container { background: #fff !important; }
-header { display: none; }
-
-/* Header */
-.secure-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; width: 100%; }
-.secure-logo { background: #a78bfa; border-radius: 16px; padding: 0.5rem 0.7rem; display: flex; align-items: center; }
-.secure-logo-icon { font-size: 2rem; color: #fff; margin-right: 0.5rem; }
-.secure-title { font-size: 2rem; font-weight: 700; color: #7c3aed; margin-bottom: 0; }
-.secure-subtitle { color: #888; font-size: 1rem; margin-top: -0.5rem; }
-.secure-viewsrc { border: 1.5px solid #7c3aed; border-radius: 12px; padding: 0.7rem 1.5rem; color: #fff; background: #7c3aed; font-weight: 600; text-decoration: none; transition: 0.2s; font-size: 1.1rem; box-shadow: 0 2px 8px #ede9fe44; }
-.secure-viewsrc:hover { background: #a78bfa; color: #fff; }
-
-/* Hero */
-.hero-badge { background: #ede9fe; color: #7c3aed; border-radius: 999px; padding: 0.3rem 1.2rem; font-weight: 600; display: inline-block; margin-bottom: 1.2rem; }
-.hero-title { font-size: 3rem; font-weight: 800; color: #222; line-height: 1.1; margin-bottom: 0.5rem; }
-.hero-title .highlight { color: #a78bfa; }
-.hero-desc { color: #555; font-size: 1.2rem; margin-bottom: 1.2rem; }
-.hero-features { display: flex; gap: 2rem; justify-content: center; margin-bottom: 2rem; }
-.hero-feature { font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-.hero-feature.green { color: #22c55e; }
-.hero-feature.purple { color: #7c3aed; }
-.hero-feature.yellow { color: #eab308; }
-
-/* Card Tabs */
-.card-tabs { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 2.5rem; width: 100%; }
-.card-tab { flex: 1; background: #fff; border-radius: 18px; border: 2.5px solid #ede9fe; padding: 1.5rem 0.5rem; text-align: center; cursor: pointer; transition: 0.2s; font-size: 1.2rem; font-weight: 600; color: #222; box-shadow: 0 2px 8px #ede9fe44; }
-.card-tab.selected { border: 2.5px solid #a78bfa; background: #f6f3ff; color: #7c3aed; }
-.card-tab .tab-icon { font-size: 2.2rem; display: block; margin-bottom: 0.5rem; }
-
-/* Section Card */
-.section-card { background: #fff; border-radius: 18px; box-shadow: 0 2px 8px #ede9fe44; margin-bottom: 2rem; padding: 0; width: 100%; }
-.section-header { background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%); color: #fff; border-radius: 18px 18px 0 0; padding: 1.2rem 1.5rem; font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 0.7rem; }
-.section-desc { color: #a78bfa; font-size: 1rem; margin: 0 0 1.2rem 0; padding: 0 1.5rem; }
-.section-body { padding: 1.5rem; }
-
-/* Inputs & Buttons */
-.stTextArea textarea, .stTextInput input { border-radius: 12px !important; border: 1.5px solid #ede9fe !important; font-size: 1.1rem; background: #fff !important; color: #222 !important; }
-.stTextArea label, .stTextInput label, .stFileUploader label { color: #222 !important; }
-.stFileUploader { border-radius: 12px !important; border: 1.5px solid #ede9fe !important; background: #fff !important; color: #222 !important; }
-.stButton > button { border-radius: 12px !important; background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%) !important; color: #fff !important; font-weight: 700 !important; font-size: 1.1rem !important; padding: 0.9rem 0 !important; margin-top: 1rem; box-shadow: 0 2px 8px #ede9fe44; }
-.stButton > button:disabled { background: #ede9fe !important; color: #bbb !important; }
-
-/* Preview Area */
-.preview-area { border: 2.5px dashed #ede9fe; border-radius: 16px; padding: 2.5rem 1rem; text-align: center; color: #a78bfa; margin-bottom: 1.5rem; background: #fff; }
-.preview-area .preview-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
-.preview-area .preview-title { font-size: 1.2rem; font-weight: 700; color: #000; }
-.preview-area .preview-desc { color: #000; font-size: 1rem; }
-
-/* Footer */
-.secure-footer { text-align: center; color: #101010; font-size: 1rem; margin-top: 2.5rem; margin-bottom: 0.5rem; width: 100%; }
-.secure-footer .footer-icon { color: #a78bfa; margin-right: 0.3rem; }
-
-/* Full width for main container */
-.block-container { max-width: 100vw !important; padding-left: 2vw !important; padding-right: 2vw !important; }
-</style>
-''', unsafe_allow_html=True)
-
-# --- Header ---
-st.markdown('''
-<div class="secure-header">
-  <div style="display: flex; align-items: center; gap: 0.7rem;">
-    <span class="secure-logo"><span class="secure-logo-icon">🛡️</span></span>
-    <div>
-      <div class="secure-title">ImageShield</div>
-      <div class="secure-subtitle">Advanced Image Steganography</div>
-    </div>
+<div class="navbar">
+  <div class="nav-brand">
+    <div class="nav-logo">S</div>
+    <span class="nav-title">ImageShield</span>
   </div>
-  <a class="secure-viewsrc" href="https://github.com/madhavchaturvedi005/image_steganography_project" target="_blank"> <span style="margin-right:0.5em;"></span>View Source</a>
+  <div class="nav-links">
+    <a class="nav-link active" href="#">Tool</a>
+    <a class="nav-link" href="#" onclick="alert('Documentation coming soon.')">Documentation</a>
+    <a class="nav-btn" href="https://github.com/madhavchaturvedi005/image_steganography_project" target="_blank">View Source</a>
+  </div>
 </div>
 ''', unsafe_allow_html=True)
 
-# --- Hero Section ---
+# ── Hero (full width) ────────────────────────────────────────────────────────
+
 st.markdown('''
-<div class="hero-badge"> <span style="margin-right:0.5em;">🔒</span> Military-Grade LSB Steganography </div>
-<div class="hero-title">Hide Your Secrets in <span class="highlight">Plain Sight</span></div>
-<div class="hero-desc">Securely embed secret messages into images using advanced Least Significant Bit (LSB) steganography. Your secrets remain invisible to the naked eye.</div>
-<div class="hero-features">
-  <div class="hero-feature green">● Zero Data Loss</div>
-  <div class="hero-feature purple">● Browser-Based Security</div>
-  <div class="hero-feature yellow">● Undetectable to Human Eye</div>
+<div class="hero">
+  <div class="hero-tag">LSB Steganography + Quantum Encryption</div>
+  <div class="hero-title">Hide secrets in plain sight</div>
+  <div class="hero-desc">
+    Embed messages invisibly into images using Least Significant Bit encoding.
+    Layer on quantum-simulated BB84 key encryption or OTP protection for added security.
+  </div>
+  <div class="chips">
+    <span class="chip">Zero visible change</span>
+    <span class="chip">BB84 Quantum Key</span>
+    <span class="chip">PNG / JPG support</span>
+  </div>
 </div>
 ''', unsafe_allow_html=True)
 
-# --- Card Tabs ---
-tab_labels = ["Hide Message", "Reveal Message"]
-tab_icons = ["＋", "🔍"]
-tab_descs = ["Encode secret text into an image", "Decode hidden text from an image"]
+# ── Content wrapper (with side margins) ───────────────────────────────────────
 
-if 'selected_tab' not in st.session_state:
-    st.session_state.selected_tab = 0
+st.markdown('<div class="content-wrap">', unsafe_allow_html=True)
 
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("＋ Hide Message", key="tab_hide", use_container_width=True):
-        st.session_state.selected_tab = 0
-with col2:
-    if st.button("🔍 Reveal Message", key="tab_reveal", use_container_width=True):
-        st.session_state.selected_tab = 1
+# ── Tab state ─────────────────────────────────────────────────────────────────
 
-# --- Encode Section ---
-if st.session_state.selected_tab == 0:
-    st.markdown('''<div class="section-card">
-      <div class="section-header">🛡️ Encode Secret Message</div>
-      <div class="section-desc" style="margin-bottom:0.5rem;">Hide your secret message inside an image using LSB steganography</div>
-      <div class="section-body" style="padding-top:0.5rem;">''', unsafe_allow_html=True)
-    
-    st.markdown('''<style>
-    textarea, .stTextArea textarea, .stTextInput input { background: #fff !important; }
-    .stFileUploader { background: #fff !important; }
-    </style>''', unsafe_allow_html=True)
-    
-    message = st.text_area("Secret Message", placeholder="Enter your secret message here...", key="encode_msg")
-    image_file = st.file_uploader("Cover Image", type=["png", "jpg", "jpeg"], key="encode_img")
-    encode_btn = st.button("Hide Message in Image", key="encode_btn", use_container_width=True, disabled=not (message and image_file))
-    
+if 'tab' not in st.session_state:
+    st.session_state.tab = 0
+
+st.markdown('<div class="tab-bar">', unsafe_allow_html=True)
+c1, c2 = st.columns(2)
+with c1:
+    if st.button("Encode — Hide Message", key="tab_enc", use_container_width=True):
+        st.session_state.tab = 0
+with c2:
+    if st.button("Decode — Reveal Message", key="tab_dec", use_container_width=True):
+        st.session_state.tab = 1
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ── Encode ────────────────────────────────────────────────────────────────────
+
+if st.session_state.tab == 0:
+    st.markdown('''
+    <div class="card">
+      <div class="card-head">
+        <div class="card-icon">E</div>
+        <div>
+          <div class="card-head-title">Encode Secret Message</div>
+          <div class="card-head-desc">Your message will be invisibly embedded into the image pixels.</div>
+        </div>
+      </div>
+      <div class="card-body">
+    ''', unsafe_allow_html=True)
+
+    message    = st.text_area("Message", placeholder="Type your secret message...", key="enc_msg", height=110)
+    image_file = st.file_uploader("Cover Image", type=["png", "jpg", "jpeg"], key="enc_img")
+
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.8rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem;">Security Options</div>', unsafe_allow_html=True)
+
+    otp_mode = toggle_widget("OTP Protection", "Generate a 6-digit code required to decode the message.", "enc_otp")
+    q_mode   = toggle_widget("Quantum Mode (BB84)", "Encrypt using a simulated BB84 quantum key distribution.", "enc_q")
+
+    enc_btn = st.button("Encode and Hide Message", key="enc_btn", use_container_width=True, disabled=not (message and image_file))
+
     st.markdown('</div></div>', unsafe_allow_html=True)
-    
-    st.markdown('<div class="preview-area">', unsafe_allow_html=True)
-    if encode_btn and image_file and message:
-        try:
-            image = Image.open(image_file).convert("RGB")
-            encoded_image = image.copy()
-            encoded_image.putdata(encode_data(image, message))
-            buffered = BytesIO()
-            encoded_image.save(buffered, format="PNG")
-            img_bytes = buffered.getvalue()
-            st.image(encoded_image, caption="Encoded Image Preview", use_column_width=True)
-            img_str = base64.b64encode(img_bytes).decode()
-            href = f'<div style="display:flex;justify-content:center;"><a href="data:file/png;base64,{img_str}" download="encoded.png" class="secure-viewsrc" style="margin-top:1.2em;display:inline-block;">⬇️ Download Encoded Image</a></div>'
-            st.markdown(href, unsafe_allow_html=True)
-        except Exception as e:
-            st.error(f"Error encoding image: {e}")
-    else:
-        st.markdown('<div class="preview-icon">👁️</div><div class="preview-title">Encoded Image Preview</div><div class="preview-desc">Your steganography result will appear here</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Decode Section ---
-if st.session_state.selected_tab == 1:
-    st.markdown('''<div class="section-card">
-      <div class="section-header">🔍 Reveal Secret Message</div>
-      <div class="section-desc" style="margin-bottom:0.5rem; color:#222;">Decode hidden text from an image using LSB steganography</div>
-      <div class="section-body" style="padding-top:0.5rem;">''', unsafe_allow_html=True)
-    
-    st.markdown('''<style>
-    .stFileUploader { background: #fff !important; }
-    .preview-area, .preview-area * { color: #222 !important; }
-    .decoded-message-box {
-        color: #222 !important;
-        background-color: #f8f9fa;
-        padding: 1rem;
-        border-radius: 12px;
-        font-size: 1.1rem;
-        margin-top: 1em;
-        word-break: break-word;
-        border: 1px solid #ddd;
-        font-family: monospace;
-        white-space: pre-wrap;
-    }
-    .preview-title {
-        color: #222 !important;
-        font-weight: 700;
-    }
-    </style>''', unsafe_allow_html=True)
-    
-    decode_image_file = st.file_uploader("Encoded Image", type=["png", "jpg", "jpeg"], key="decode_img")
-    decode_btn = st.button("Reveal Message", key="decode_btn", use_container_width=True, disabled=not decode_image_file)
-    st.markdown('</div></div>', unsafe_allow_html=True)
-    
-    st.markdown('<div class="preview-area">', unsafe_allow_html=True)
-    if decode_btn and decode_image_file:
+    if enc_btn and image_file and message:
         try:
-            decode_image = Image.open(decode_image_file).convert("RGB")
-            decoded_message = decode_data(decode_image)
+            payload = message
+
+            if otp_mode:
+                otp = generate_otp()
+                payload = otp_crypt(payload, otp)
+                st.success(f"OTP generated: **{otp}** — save this to decode the message.")
+
+            if q_mode:
+                with st.spinner("Generating quantum key via BB84 simulation..."):
+                    key_bits = generate_bb84_key(len(payload) * 8)
+                    payload  = xor_encrypt(payload, key_bits)
+                st.info("Quantum key generated — save this to decode:")
+                st.code(key_bits_to_str(key_bits), language=None)
+
+            img = Image.open(image_file).convert("RGB")
+            out = img.copy()
+            out.putdata(encode_data(img, payload))
+            buf = BytesIO()
+            out.save(buf, format="PNG")
+            b64 = base64.b64encode(buf.getvalue()).decode()
+
+            st.image(out, caption="Encoded image — message hidden inside", use_column_width=True)
             st.markdown(
-                f'<div class="preview-icon">📜</div>'
-                f'<div class="preview-title">Hidden Message Revealed</div>'
-                f'<div class="decoded-message-box">'
-                f'{decoded_message if decoded_message else "No hidden message found or image is not properly encoded."}'
-                f'</div>', 
+                f'<div style="text-align:center;margin-top:1rem;">'
+                f'<a class="dl-btn" href="data:file/png;base64,{b64}" download="encoded.png">Download Encoded Image</a>'
+                f'</div>',
                 unsafe_allow_html=True
             )
         except Exception as e:
-            st.error(f"Error decoding image: {e}")
+            st.error(f"Encoding failed: {e}")
     else:
-        st.markdown(
-            '<div class="preview-icon">👁️</div>'
-            '<div class="preview-title">Decoded Message Preview</div>'
-            '<div class="preview-desc" style="color:#222;">Your decoded message will appear here</div>',
-            unsafe_allow_html=True
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
-# --- Footer ---
-st.markdown('''<div class="secure-footer">
-  <span class="footer-icon">🛡️</span> Built with security and privacy in mind. All processing happens in your browser.<br>
-  © 2024 SecureSteg. Educational purposes only. Use responsibly.
-</div>''', unsafe_allow_html=True)
+        st.markdown('''
+        <div class="preview-box">
+          <div class="preview-title">Encoded Image Preview</div>
+          <div class="preview-desc">Result will appear here after encoding</div>
+        </div>
+        ''', unsafe_allow_html=True)
+
+# ── Decode ────────────────────────────────────────────────────────────────────
+
+if st.session_state.tab == 1:
+    st.markdown('''
+    <div class="card">
+      <div class="card-head">
+        <div class="card-icon">D</div>
+        <div>
+          <div class="card-head-title">Decode Hidden Message</div>
+          <div class="card-head-desc">Upload an encoded image to extract the hidden message.</div>
+        </div>
+      </div>
+      <div class="card-body">
+    ''', unsafe_allow_html=True)
+
+    dec_file = st.file_uploader("Encoded Image", type=["png", "jpg", "jpeg"], key="dec_img")
+
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.8rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem;">Security Options</div>', unsafe_allow_html=True)
+
+    otp_dec   = toggle_widget("OTP Protected", "Enable if the message was encoded with OTP protection.", "dec_otp")
+    otp_input = st.text_input("6-digit OTP", key="otp_in", placeholder="e.g. 482910", max_chars=6) if otp_dec else ""
+
+    q_dec = toggle_widget("Quantum Mode (BB84)", "Enable if the message was encoded with Quantum Mode.", "dec_q")
+    q_key = st.text_input("Quantum Key", key="dec_qkey", placeholder="Paste the key from encoding...") if q_dec else ""
+
+    dec_btn = st.button("Decode and Reveal Message", key="dec_btn", use_container_width=True, disabled=not dec_file)
+
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+    if dec_btn and dec_file:
+        try:
+            img = Image.open(dec_file).convert("RGB")
+            msg = decode_data(img)
+
+            if q_dec and q_key:
+                msg = xor_decrypt(msg, str_to_key_bits(q_key))
+            if otp_dec:
+                if not otp_input or len(otp_input) != 6 or not otp_input.isdigit():
+                    st.error("Please enter a valid 6-digit OTP.")
+                    st.stop()
+                msg = otp_crypt(msg, otp_input)
+
+            if msg:
+                st.markdown(
+                    f'<div class="decoded-label">Hidden Message</div>'
+                    f'<div class="decoded-box">{msg}</div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.warning("No hidden message found in this image.")
+        except Exception as e:
+            st.error(f"Decoding failed: {e}")
+    else:
+        st.markdown('''
+        <div class="preview-box">
+          <div class="preview-title">Decoded Message Preview</div>
+          <div class="preview-desc">The hidden message will appear here after decoding</div>
+        </div>
+        ''', unsafe_allow_html=True)
+
+# ── Footer ────────────────────────────────────────────────────────────────────
+
+st.markdown('''
+<div class="app-footer">
+  All processing happens locally — no data is sent to any server.<br>
+  ImageShield &copy; 2024 &mdash; Educational use only.
+</div>
+''', unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)  # close page-wrap
