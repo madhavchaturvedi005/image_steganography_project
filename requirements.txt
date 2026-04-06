@@ -1,0 +1,4 @@
+streamlit
+Pillow
+qiskit==2.3.1
+qiskit-aer==0.17.2
